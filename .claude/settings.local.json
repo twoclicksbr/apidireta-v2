@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/c/Users/alexa/.config/herd/bin/php.bat artisan test:*)",
+      "Bash(/c/Users/alexa/.config/herd/bin/php.bat artisan:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
