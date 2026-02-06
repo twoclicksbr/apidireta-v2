@@ -15,9 +15,9 @@ class PersonSeeder extends Seeder
         // Pessoa exemplo do tenant ApiDireta
         Person::factory()->create([
             'tenant_id' => 1, // ApiDireta tenant
-            'name' => 'Alexandre Costa',
-            'birth_date' => '1990-01-15',
-            'whatsapp' => '+55 11 99999-9999',
+            'name' => 'Alex Alves de Almeida',
+            'birth_date' => '1985-05-09',
+            'whatsapp' => '+55 12 99769-8040',
             'status' => 'active',
         ]);
     }
