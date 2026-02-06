@@ -31,6 +31,98 @@ Antes de executar qualquer operação, a model genérica consulta a module_field
 - O **acesso ao projeto** é controlado por tokens: sand_token e prod_token.
 - Campos com **type=password** recebem hash (bcrypt) e são hidden automaticamente.
 
+## Arquitetura da API
+
+### Controller Dinâmico
+O projeto utiliza um **Controller Base** único que gerencia todos os módulos dinamicamente através do parâmetro `{module}` nas rotas.
+
+**Rotas dinâmicas** (em `routes/api.php`):
+```php
+Route::prefix('v2/admin')->group(function () {
+    Route::get('{module}', [Controller::class, 'index']);
+    Route::post('{module}', [Controller::class, 'store']);
+    Route::get('{module}/{id}', [Controller::class, 'show']);
+    Route::put('{module}/{id}', [Controller::class, 'update']);
+    Route::patch('{module}/{id}', [Controller::class, 'update']);
+    Route::delete('{module}/{id}', [Controller::class, 'destroy']);
+    Route::patch('{module}/{id}/restore', [Controller::class, 'restore']);
+});
+```
+
+**Resolução dinâmica** (em `Controller.php`):
+- `resolveModel()`: Converte `{module}` em class do Model (ex: "tenants" → `App\Models\Tenant`)
+- `resolveAndValidateRequest()`: Busca e aplica validação da Request específica (ex: `App\Http\Requests\Tenant\TenantRequest`)
+- `buildResponse()`: Padroniza resposta JSON com campos `site`, `docs`, `endpoint`
+
+**Benefícios**:
+- Elimina necessidade de criar controllers específicas para cada módulo
+- Validação automática quando existe Request class
+- Redução massiva de código duplicado
+- Facilita criação de novos módulos (apenas Model + Request)
+
+**Controllers específicas** podem ser criadas para casos que fogem do padrão CRUD, mantendo a mesma estrutura de rota `{module}`.
+
+### Padronização de Respostas JSON
+Todas as respostas da API seguem um formato consistente:
+
+**Estrutura base**:
+```json
+{
+    "site": "https://apidireta.test",
+    "docs": "https://docs.apidireta.test",
+    "endpoint": "https://api.apidireta.test/v2/admin/tenants",
+    "data": { ... }
+}
+```
+
+**Configuração de formatação**:
+- `JSON_PRETTY_PRINT`: JSON formatado e legível
+- `JSON_UNESCAPED_SLASHES`: Mantém URLs sem escapes (`/` ao invés de `\/`)
+- `JSON_UNESCAPED_UNICODE`: Caracteres especiais sem escape (`ã` ao invés de `\u00e3`)
+
+**Códigos de status**:
+- `200`: Sucesso (GET, PUT, PATCH, DELETE)
+- `201`: Criado (POST)
+- `404`: Não encontrado
+- `422`: Erro de validação
+- `405`: Método não permitido
+- `401`: Não autorizado
+- `403`: Acesso negado
+- `500`: Erro interno do servidor
+
+**Tratamento de erros** configurado em `bootstrap/app.php` com respostas JSON padronizadas para todos os códigos HTTP.
+
+## Testes Automatizados
+O projeto utiliza **Pest** (framework de testes) com banco de dados SQLite em memória para testes rápidos e isolados.
+
+### Estrutura de Testes
+- **Factories**: Geram dados fake para cada model (ex: `TenantFactory`). Usa Faker para criar dados realistas.
+- **Feature Tests**: Testam endpoints completos através de requisições HTTP (ex: `TenantTest`).
+- **Configuração**: `phpunit.xml` define variáveis de ambiente específicas para testes (API_DOMAIN, SITE_DOMAIN, DOCS_DOMAIN).
+
+### Validação Dinâmica no Controller Base
+O `Controller.php` possui o método `resolveAndValidateRequest()` que:
+1. Resolve dinamicamente a Request class do módulo (ex: `App\Http\Requests\Tenant\TenantRequest`)
+2. Se a Request existir, aplica as regras de validação automaticamente
+3. Se não existir, retorna todos os dados sem validação
+4. Suporta detecção automática de criação vs atualização via `$this->route('id')`
+
+### Cobertura de Testes (exemplo: TenantTest)
+- Listagem (vazia e com dados)
+- Criação com validação
+- Exibição de registro específico
+- Resposta 404 para registros inexistentes
+- Atualização (PUT e PATCH)
+- Soft delete
+- Restauração de registros deletados
+- Paginação
+- Validações (campos obrigatórios e unicidade)
+
+### Comando para Executar
+```bash
+php artisan test --filter=TenantTest
+```
+
 ## Restrição de Acesso
 Duas telas de permissão:
 
